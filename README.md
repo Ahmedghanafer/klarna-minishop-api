@@ -1,0 +1,1 @@
+# Klarna Mini‑Shop API
