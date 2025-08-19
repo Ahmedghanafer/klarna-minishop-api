@@ -1,6 +1,5 @@
-using System.Net.Http;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.VisualStudio.TestPlatform.TestHost;
 
 namespace Minishop.Tests;
 
