@@ -1,42 +1,41 @@
 using System.Reflection;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-builder.Services.AddCors(options =>
+// Cors:AllowedOrigins:0, :1, ...
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(o =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
-    });
+    o.AddPolicy("AppCors", p => p
+        .WithOrigins(allowedOrigins)   // exact match incl. scheme + port
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
 });
 
-
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.UseCors();
+// IMPORTANT: order for endpoint routing + CORS
+app.UseRouting();
+app.UseCors("AppCors");   // global CORS (do NOT also use .RequireCors on endpoints)
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Minishop API v1"));
 }
-app.UseHttpsRedirection();
-
-
 
 app.MapGet("/health", () =>
-    {
-        var version = Assembly.GetExecutingAssembly()
-            .GetName().Version?.ToString() ?? "0.1.0";
-        return Results.Ok(new { status = "ok", version });
-    });
+{
+    var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.1.0";
+    return Results.Ok(new { status = "ok", version });
+});
 
 app.Run();
 public partial class Program { }
