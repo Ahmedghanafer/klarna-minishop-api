@@ -1,4 +1,7 @@
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
+using Minishop.Infrastructure.Persistence;
+using Minishop.Infrastructure.Persistence.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +22,17 @@ builder.Services.AddCors(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- Database (EF Core) ---
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// --- Seeding ---
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<ProductSeeder>();
+    
+}
 var app = builder.Build();
 
 // IMPORTANT: order for endpoint routing + CORS
