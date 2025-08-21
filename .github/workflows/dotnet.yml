@@ -9,38 +9,39 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          SA_PASSWORD: "123@Password"
+        ports:
+          - 14333:1433
+        # Wait for SQL to be ready
+        options: >-
+          --health-cmd " /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '123@Password' -C -Q 'SELECT 1' || exit 1 "
+          --health-interval 10s --health-timeout 5s --health-retries 30
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
-      - name: Cache NuGet
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-
       - name: Restore
         run: dotnet restore Minishop.sln
-
       - name: Build (Release)
         run: dotnet build Minishop.sln --configuration Release --no-restore
-
       - name: Test (Release)
-        run: dotnet test Minishop.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            **/TestResults/*.trx
-            **/TestResults/**/*.xml
+        env:
+          # keep Dev so ProductSeeder runs (optional)
+          ASPNETCORE_ENVIRONMENT: Development
+          # ensure the app sees the right connection string
+          ConnectionStrings__DefaultConnection: "Server=localhost,14333;Database=MinishopDb;User Id=sa;Password=123@Password;TrustServerCertificate=True;"
+        run: dotnet test Minishop.sln --configuration Release --no-build --verbosity normal \
+          --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
